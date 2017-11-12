@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>D3 World Map</title>
+    <style>
+      path {
+        stroke: white;
+        stroke-width: 0.5px;
+        fill: black;
+      }
+    </style>
+    <script src="node_modules/d3/build/d3.min.js"></script>
+    <script src="node_modules/topojson/dist/topojson.min.js"></script>
+  </head>
+  <body>
+    <script type="text/javascript">
+      var width = 900;
+      var height = 600;
+
+      var projection = d3.geoMercator()
+        .scale([700])
+        .translate([width, 0]);
+
+      var svg = d3.select("body").append("svg")
+          .attr("width", width)
+          .attr("height", height);
+      var path = d3.geoPath()
+          .projection(projection);
+      var g = svg.append("g");
+
+      d3.json("data/comunas_p2.json", function(error, topology) {
+        g.selectAll("path")
+          .data(topojson.feature(topology, topology.objects.cl_comunas_p2).features)
+        .enter()
+          .append("path")
+          .attr("d", path)
+      });
+    </script>
+  </body>
+</html>
