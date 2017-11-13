@@ -1,5 +1,44 @@
 (function() {
 
+  const lines = {
+    '1': ['SAN PABLO L1', 'NEPTUNO', 'PAJARITOS', 'LAS REJAS', 'ECUADOR', 'SAN ALBERTO HURTADO',
+        'UNIVERSIDAD DE SANTIAGO', 'ESTACION CENTRAL', 'UNION LATINO AMERICANA', 'REPUBLICA',
+        'LOS HEROES L1', 'LA MONEDA', 'UNIVERSIDAD DE CHILE', 'SANTA LUCIA', 'UNIVERSIDAD CATOLICA',
+        'BAQUEDANO L1', 'SALVADOR', 'MANUEL MONTT', 'PEDRO DE VALDIVIA', 'LOS LEONES', 'TOBALABA L1',
+        'EL GOLF', 'ALCANTARA', 'ESCUELA MILITAR', 'MANQUEHUE', 'HERNANDO DE MAGALLANES', 'LOS DOMINICOS'],
+    '2': ['VESPUCIO NORTE', 'ZAPADORES', 'DORSAL', 'EINSTEIN', 'CEMENTERIOS', 'CERRO BLANCO', 'PATRONATO',
+       'CAL Y CANTO', 'SANTA ANA L2', 'LOS HEROES L2', 'TOESCA', 'PARQUE OHIGGINS',
+       'RONDIZONNI', 'FRANKLIN', 'EL LLANO', 'SAN MIGUEL', 'LO VIAL', 'DEPARTAMENTAL', 'CIUDAD DEL NINO',
+       'LO OVALLE', 'EL PARRON', 'LA CISTERNA L2'],
+    '4': ['TOBALABA L4', 'CRISTOBAL COLON', 'FRANCISCO BILBAO', 'PRINCIPE DE GALES', 'SIMON BOLIVAR', 'PLAZA EGANA',
+       'LOS ORIENTALES', 'GRECIA', 'LOS PRESIDENTES', 'QUILIN', 'LAS TORRES', 'MACUL', 'VICUNA MACKENNA',
+       'VICENTE VALDES L4', 'ROJAS MAGALLANES', 'TRINIDAD', 'SAN JOSE DE LA ESTRELLA', 'LOS QUILLAYES',
+       'ELISA CORREA', 'HOSPITAL SOTERO DEL RIO', 'PROTECTORA DE LA INFANCIA', 'LAS MERCEDES',
+        'PLAZA DE PUENTE ALTO'],
+    '4A': ['LA CISTERNA L4A', 'SAN RAMON', 'SANTA ROSA', 'LA GRANJA', 'SANTA JULIA', 'VICUNA MACKENNA L4A'],
+    '5': ['PLAZA MAIPU', 'SANTIAGO BUERAS', 'DEL SOL', 'MONTE TABOR', 'LAS PARCELAS', 'LAGUNA SUR',
+       'BARRANCAS', 'PUDAHUEL', 'SAN PABLO L5', 'LO PRADO', 'BLANQUEADO', 'GRUTA DE LOURDES', 'QUINTA NORMAL',
+       'CUMMING', 'SANTA ANA L5', 'PLAZA DE ARMAS', 'BELLAS ARTES', 'BAQUEDANO L5', 'PARQUE BUSTAMANTE',
+       'SANTA ISABEL', 'IRARRAZAVAL', 'NUBLE', 'RODRIGO DE ARAYA', 'CARLOS VALDOVINOS', 'CAMINO AGRICOLA',
+       'SAN JOAQUIN', 'PEDRERO', 'MIRADOR', 'BELLAVISTA DE LA FLORIDA', 'VICENTE VALDES'],
+    '0': ['SANTA ANA', 'SAN PABLO', 'LOS HEROES', 'BAQUEDANO', 'VICENTE VALDES', 'VICUNA MACKENNA',
+      'TOBALABA', 'LA CISTERNA']
+  };
+  let linesByStation = {};
+  Object.keys(lines).forEach(key => {
+    lines[key].forEach(station => {
+      linesByStation[station] = key;
+    });
+  });
+  const lineColors = {
+    '1': '#cf142b',
+    '2': '#e37105',
+    '4': '#212465',
+    '4A': '#256dca',
+    '5': '#019370',
+    '0': 'grey'
+  };
+
   const parseTime = d3.timeParse('%H:%M:%S');
 
   const svgSize = {
@@ -16,8 +55,8 @@
     y: svgPos.y
   };
   const mapSize = {
-    x: 300,
-    y: 300
+    x: 500,
+    y: 500
   };
   const timelinePos = {
     x: mapPos.x + mapSize.x + 40,
@@ -26,6 +65,24 @@
   const timelineSize = {
     x: svgSize.x - mapSize.x - mapPos.x - 50,
     y: 300
+  };
+
+  const tooltip = d3.select('body').append('div')
+    .attr('class', 'tooltip')
+    .style('opacity', 0);
+
+  const showTooltip = d => {
+    tooltip.transition()
+      .duration(200)
+      .style('opacity', .9);
+    tooltip.html(d.name)
+      .style('left', (d3.event.pageX) + 'px')
+      .style('top', (d3.event.pageY - 28) + 'px');
+  };
+  const hideTooltip = () => {
+    tooltip.transition()
+      .duration(500)
+      .style('opacity', 0);
   };
 
   let svg = d3.select('#concurrency')
@@ -37,7 +94,17 @@
     console.log(posData);
     let posDict = {};
     posData.forEach(elem => {
-      posDict[elem[0]] = [elem[1], elem[2]];
+      let name = elem[0];
+      name = name.replace(' L1', '');
+      name = name.replace(' L2', '');
+      name = name.replace(' L4A', '');
+      name = name.replace(' L4', '');
+      name = name.replace(' L5', '');
+      posDict[name] = {
+        name: name,
+        x: elem[2],
+        y: elem[1]
+      };
     });
 
     let stations = svg.append('g')
@@ -48,28 +115,37 @@
     stations.enter()
       .append('circle')
         .attr('class', 'station')
-        .attr('cx', d => d[0] * mapSize.x)
-        .attr('cy', d => d[1] * mapSize.y)
-        .attr('r', 2);
+        .attr('cx', d => d.x * mapSize.x)
+        .attr('cy', d => mapSize.y - d.y * mapSize.y)
+        .attr('r', 3)
+        .attr('fill', d => lineColors[linesByStation[d.name]])
+        .on('mouseover', showTooltip)
+        .on('mouseout', hideTooltip);
 
     function updateMap(newData) {
-      const usedStations = newData.map(d => d.origin);
+      const usedStations = newData.map(d => d.name);
       const allStations = Object.keys(posDict);
       allStations.forEach(station => {
         if (usedStations.indexOf(station) == -1) {
           newData.push({
-            origin: station,
+            name: station,
             count: 0
           });
         }
       });
 
+      const stationRadiusScale = d3.scaleLinear()
+        .range([3, 10])
+        .domain(d3.extent(newData, d => d.count))
       let newStations = svg.selectAll('.station')
         .data(newData);
       newStations
-        .attr('cx', d => posDict[d['origin']][0] * mapSize.x)
-        .attr('cy', d => posDict[d['origin']][1] * mapSize.y)
-        .attr('r', d => d['count'] / 10);
+        .attr('cx', d => posDict[d['name']].x * mapSize.x)
+        .attr('cy', d => mapSize.y - posDict[d['name']].y * mapSize.y)
+        .attr('r', d => stationRadiusScale(d.count))
+        .attr('fill', d => lineColors[linesByStation[d.name]])
+        .on('mouseover', showTooltip)
+        .on('mouseout', hideTooltip);
     };
 
     d3.csv('./data/3_minutes_all.csv', d => {
@@ -91,7 +167,7 @@
           'time': time,
           'count': count,
           'day': parseInt(d['day']),
-          'origin': d['origin']
+          'name': d['origin']
         };
       }, stationData => {
         console.log(stationData);
@@ -130,12 +206,14 @@
             .datum(dataPerDay[i])
             .attr('day', i)
             .attr('d', valueLine)
+            .attr('fill', 'grey')
             .on('mousemove', mousemove);
         });
 
         function mousemove() {
-          // Borrar la línea que estaba dibujada antes
+          // Borrar línea y texto que estaban dibujados antes
           d3.selectAll('.selector-line').remove();
+          d3.selectAll('.time-text').remove();
 
           // Cambiar de posición la línea de selección
           const mousePosX = d3.mouse(this)[0];
@@ -152,6 +230,15 @@
             .attr('stroke-width', 2);
 
           const time = xScale.invert(mousePosX);
+          // Agregar texto informativo
+          d3.select(this.parentNode).append('text')
+            .text(time.toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, "$1"))
+            .attr('class', 'time-text')
+            .attr('font-size', 12)
+            .attr('x', mousePosX - 50)
+            .attr('y', yPos + 10);
+
+          // Actualizar mapa
           let filtered = stationData.filter(d =>
             parseInt(curElem.attr('day')) == d.day &&
             (time.getTime() - d.time.getTime()) < 180000 && (time.getTime() - d.time.getTime()) > 0);
