@@ -1,5 +1,7 @@
 (function() {
 
+  const dayNames = ['L', 'M', 'W', 'J', 'V', 'S', 'D'];
+  // const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
   const lines = {
     '1': ['SAN PABLO L1', 'NEPTUNO', 'PAJARITOS', 'LAS REJAS', 'ECUADOR', 'SAN ALBERTO HURTADO',
         'UNIVERSIDAD DE SANTIAGO', 'ESTACION CENTRAL', 'UNION LATINO AMERICANA', 'REPUBLICA',
@@ -42,7 +44,7 @@
   const parseTime = d3.timeParse('%H:%M:%S');
 
   const svgSize = {
-    x: window.innerWidth * .9,
+    x: window.innerWidth * .95,
     y: 500
   };
 
@@ -63,7 +65,7 @@
     y: svgPos.y
   };
   const timelineSize = {
-    x: svgSize.x - mapSize.x - mapPos.x - 50,
+    x: svgSize.x - mapSize.x - mapPos.x - 60,
     y: 300
   };
 
@@ -75,9 +77,12 @@
     tooltip.transition()
       .duration(200)
       .style('opacity', .9);
-    tooltip.html(d.name)
+    let countString = '';
+    if (d.count !== undefined) countString = parseInt(d.count) + ' entradas/min';
+    tooltip.html(d.name + '<br/>' + countString)
       .style('left', (d3.event.pageX) + 'px')
-      .style('top', (d3.event.pageY - 28) + 'px');
+      .style('top', (d3.event.pageY - 28) + 'px')
+      .style('height', '1000');
   };
   const hideTooltip = () => {
     tooltip.transition()
@@ -202,18 +207,22 @@
             .attr('height', (timelineSize.y - 60) / 5)
             .attr('fill', 'white')
           timeline.append('path')
-            .attr('transform', d => `translate(0, ${50 * (i + 1)})`)
+            .attr('transform', `translate(0, ${50 * (i + 1)})`)
             .datum(dataPerDay[i])
             .attr('day', i)
             .attr('d', valueLine)
             .attr('fill', 'grey')
             .on('mousemove', mousemove);
+          timeline.append('text')
+            .text(dayNames[i])
+            .attr('x', timelineSize.x)
+            .attr('y', 50 * (i + 1) + 35);
         });
 
-        function mousemove() {
+        function mousemove(selectedData) {
           // Borrar línea y texto que estaban dibujados antes
           d3.selectAll('.selector-line').remove();
-          d3.selectAll('.time-text').remove();
+          d3.selectAll('.time-info-text').remove();
 
           // Cambiar de posición la línea de selección
           const mousePosX = d3.mouse(this)[0];
@@ -233,9 +242,16 @@
           // Agregar texto informativo
           d3.select(this.parentNode).append('text')
             .text(time.toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, "$1"))
-            .attr('class', 'time-text')
+            .attr('class', 'time-info-text')
             .attr('font-size', 12)
             .attr('x', mousePosX - 50)
+            .attr('y', yPos + 10);
+          let selectedDatum = selectedData.find(d => (time.getTime() - d.time.getTime()) < 180000 && (time.getTime() - d.time.getTime()) > 0);
+          d3.select(this.parentNode).append('text')
+            .text(`${parseInt(selectedDatum.count)} entradas/min`)
+            .attr('class', 'time-info-text')
+            .attr('font-size', 12)
+            .attr('x', mousePosX + 10)
             .attr('y', yPos + 10);
 
           // Actualizar mapa
