@@ -43,7 +43,7 @@
 
   const svgSize = {
     x: window.innerWidth * .9,
-    y: 5 * window.innerHeight
+    y: 500
   };
 
   const svgPos = {
@@ -56,7 +56,7 @@
   };
   const mapSize = {
     x: 500,
-    y: 500
+    y: svgSize.y
   };
   const timelinePos = {
     x: mapPos.x + mapSize.x + 40,

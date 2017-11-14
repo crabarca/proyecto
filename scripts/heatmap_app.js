@@ -24,9 +24,9 @@ var MAXTRIPS = 7000;
 var PREFIX = 'https://es.wikipedia.org/wiki/';
 
 d3.select('#d3-header').text("Provincia de Santiago");
-d3.selectAll('p').remove();
+d3.selectAll('#dow-container p').remove();
 
-var body = d3.select('body');
+var body = d3.select('#dow-container');
 body.append('p').text("Comuna: ")
                 .attr('id', 'region')
                 .style('font-weight', 'bold');
