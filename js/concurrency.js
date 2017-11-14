@@ -73,7 +73,9 @@
     .attr('class', 'tooltip')
     .style('opacity', 0);
 
-  const showTooltip = d => {
+  const showTooltip = function(d) {
+    d3.select(this)
+      .attr('stroke', 'black');
     tooltip.transition()
       .duration(200)
       .style('opacity', .9);
@@ -84,7 +86,9 @@
       .style('top', (d3.event.pageY - 28) + 'px')
       .style('height', '1000');
   };
-  const hideTooltip = () => {
+  const hideTooltip = function() {
+    d3.select(this)
+      .attr('stroke', null);
     tooltip.transition()
       .duration(500)
       .style('opacity', 0);
