@@ -38,14 +38,17 @@
     '4': '#212465',
     '4A': '#256dca',
     '5': '#019370',
-    '0': 'grey'
+    '0': '#e9a3a3'
   };
+
+  const selectorLineColor = '#474c48';
+  const fixedSelectorLineColor = 'black';
 
   const parseTime = d3.timeParse('%H:%M:%S');
 
   const svgSize = {
     x: window.innerWidth * .95,
-    y: 500
+    y: 600
   };
 
   const svgPos = {
@@ -58,14 +61,14 @@
   };
   const mapSize = {
     x: 500,
-    y: svgSize.y
+    y: svgSize.y - 100
   };
   const timelinePos = {
-    x: mapPos.x + mapSize.x + 40,
+    x: mapPos.x + mapSize.x + 60,
     y: svgPos.y
   };
   const timelineSize = {
-    x: svgSize.x - mapSize.x - mapPos.x - 60,
+    x: svgSize.x - timelinePos.x - 20,
     y: 300
   };
 
@@ -80,7 +83,7 @@
       .duration(200)
       .style('opacity', .9);
     let countString = '';
-    if (d.count !== undefined) countString = parseInt(d.count) + ' entradas/min';
+    if (d.count !== undefined) countString = Math.round(parseFloat(d.count)) + ' entradas/min';
     tooltip.html(d.name + '<br/>' + countString)
       .style('left', (d3.event.pageX) + 'px')
       .style('top', (d3.event.pageY - 28) + 'px')
@@ -103,7 +106,7 @@
     console.log(posData);
     let posDict = {};
     posData.forEach(elem => {
-      let name = elem[0];
+      let name = elem['metro'];
       name = name.replace(' L1', '');
       name = name.replace(' L2', '');
       name = name.replace(' L4A', '');
@@ -111,21 +114,49 @@
       name = name.replace(' L5', '');
       posDict[name] = {
         name: name,
-        x: elem[2],
-        y: elem[1]
+        x: elem['longitude'],
+        y: elem['latitude']
       };
     });
 
-    let stations = svg.append('g')
-      .attr('transform', `translate(${mapPos.x}, ${mapPos.y})`)
-      .selectAll('.station')
+    let map = svg.append('g')
+      .attr('id', 'map')
+      .attr('transform', `translate(${mapPos.x}, ${mapPos.y})`);
+
+    // Add color legend
+    let mapLegend = map.append('g')
+      .attr('id', 'map-legend')
+      .attr('transform', `translate(20, ${mapSize.y})`);
+    const xColorCircle = 20;
+    const xColorText = 30;
+    const yBetween = 20;
+    const yColorTotal = 100;
+    Object.keys(lineColors).forEach((key, i) => {
+      const yColorLegend = i * yBetween - yColorTotal;
+      let color = lineColors[key];
+      mapLegend.append('circle')
+        .attr('cx', xColorCircle)
+        .attr('cy', yColorLegend)
+        .attr('r', 5)
+        .attr('fill', color);
+      let colorText;
+      if (key == '0') colorText = 'Intersección';
+      else colorText = `Línea ${key}`;
+      mapLegend.append('text')
+        .text(colorText)
+        .attr('font-size', 12)
+        .attr('x', xColorText)
+        .attr('y', yColorLegend + 5);
+    });
+
+    let stations = map.selectAll('.station')
       .data(Object.values(posDict));
 
     stations.enter()
       .append('circle')
         .attr('class', 'station')
         .attr('cx', d => d.x * mapSize.x)
-        .attr('cy', d => mapSize.y - d.y * mapSize.y)
+        .attr('cy', d => mapSize.y * (1 - d.y))
         .attr('r', 3)
         .attr('fill', d => lineColors[linesByStation[d.name]])
         .on('mouseover', showTooltip)
@@ -150,11 +181,42 @@
         .data(newData);
       newStations
         .attr('cx', d => posDict[d['name']].x * mapSize.x)
-        .attr('cy', d => mapSize.y - posDict[d['name']].y * mapSize.y)
+        .attr('cy', d => mapSize.y * (1 - posDict[d['name']].y))
         .attr('r', d => stationRadiusScale(d.count))
         .attr('fill', d => lineColors[linesByStation[d.name]])
         .on('mouseover', showTooltip)
         .on('mouseout', hideTooltip);
+      // Add map legend
+      d3.selectAll('#map-size-legend').remove();
+
+      const xSizeText = 40;
+      const textSize = 12;
+      const ySizeLegendTotal = 20;
+      const yBigCircle = 20;
+      // Size legend
+      let mapSizeLegend = mapLegend.append('g')
+        .attr('id', 'map-size-legend')
+        .attr('transform', `translate(150, 0)`)
+      mapSizeLegend.append('circle')
+        .attr('cx', 0)
+        .attr('cy', -ySizeLegendTotal)
+        .attr('r', stationRadiusScale.range()[0])
+        .attr('fill', 'grey');
+      mapSizeLegend.append('text')
+        .text(Math.round(stationRadiusScale.domain()[0]) + ' entradas/min')
+        .attr('font-size', textSize)
+        .attr('x', xSizeText)
+        .attr('y', -ySizeLegendTotal + 5);
+      mapSizeLegend.append('circle')
+        .attr('cx', 0)
+        .attr('cy', -ySizeLegendTotal + yBigCircle)
+        .attr('r', stationRadiusScale.range()[1])
+        .attr('fill', 'grey');
+      mapSizeLegend.append('text')
+        .text(Math.round(stationRadiusScale.domain()[1]) + ' entradas/min')
+        .attr('font-size', textSize)
+        .attr('x', xSizeText)
+        .attr('y', -ySizeLegendTotal + yBigCircle + 5);
     };
 
     d3.csv('./data/3_minutes_all.csv', d => {
@@ -182,6 +244,7 @@
         console.log(stationData);
 
         let timeline = svg.append('g')
+          .attr('id', 'timeline')
           .attr('transform', `translate(${timelinePos.x}, ${timelinePos.y})`);
 
         let xScale = d3.scaleTime()
@@ -192,6 +255,7 @@
           .range([(timelineSize.y - 60) / 5, 0])
           .domain([0, d3.max(timeData, d => d['count'])]);
 
+        // Add horizontal axis
         timeline.append('g')
           .call(d3.axisBottom(xScale));
 
@@ -204,26 +268,47 @@
           dataPerDay[d.day].push(d);
         });
         dataPerDay.forEach((d, i) => {
+          const yPos = 60 * (i + 1);
           let dayPlot = timeline.append('rect')
             .attr('x', 0)
-            .attr('y', 50 * (i + 1))
+            .attr('y', yPos)
             .attr('width', timelineSize.x)
             .attr('height', (timelineSize.y - 60) / 5)
-            .attr('fill', 'white')
+            .attr('fill', 'white');
+          // Add vertical axis
+          timeline.append('g')
+            .attr('transform', `translate(0, ${yPos})`)
+            .call(d3.axisLeft(yScale)
+              .tickValues(yScale.domain()));
+          // Add plot
           timeline.append('path')
-            .attr('transform', `translate(0, ${50 * (i + 1)})`)
+            .attr('transform', `translate(0, ${yPos})`)
             .datum(dataPerDay[i])
             .attr('day', i)
             .attr('d', valueLine)
             .attr('fill', 'grey')
-            .on('mousemove', mousemove);
+            .on('click', clickTimeline)
+            .on('mousemove', mousemoveTimeline);
+          // Add day text
           timeline.append('text')
             .text(dayNames[i])
             .attr('x', timelineSize.x)
-            .attr('y', 50 * (i + 1) + 35);
+            .attr('y', yPos + 35);
         });
 
-        function mousemove(selectedData) {
+        svg.on('dblclick', dblclickSvg);
+
+        function clickTimeline() {
+          d3.selectAll('#timeline path').on('mousemove', null);
+          d3.selectAll('.selector-line').attr('stroke', fixedSelectorLineColor);
+        };
+
+        function dblclickSvg() {
+          d3.selectAll('#timeline path').on('mousemove', mousemoveTimeline);
+          d3.selectAll('.selector-line').attr('stroke', selectorLineColor);
+        };
+
+        function mousemoveTimeline(selectedData) {
           // Borrar línea y texto que estaban dibujados antes
           d3.selectAll('.selector-line').remove();
           d3.selectAll('.time-info-text').remove();
@@ -239,8 +324,9 @@
             .attr('x2', mousePosX)
             .attr('y1', yPos + 50)
             .attr('y2', yPos)
-            .attr('stroke', 'red')
-            .attr('stroke-width', 2);
+            .attr('stroke', selectorLineColor)
+            .attr('stroke-width', 2)
+            .on('click', clickTimeline);
 
           const time = xScale.invert(mousePosX);
           // Agregar texto informativo
@@ -252,7 +338,7 @@
             .attr('y', yPos + 10);
           let selectedDatum = selectedData.find(d => (time.getTime() - d.time.getTime()) < 180000 && (time.getTime() - d.time.getTime()) > 0);
           d3.select(this.parentNode).append('text')
-            .text(`${parseInt(selectedDatum.count)} entradas/min`)
+            .text(`${Math.round(parseFloat(selectedDatum.count))} entradas/min`)
             .attr('class', 'time-info-text')
             .attr('font-size', 12)
             .attr('x', mousePosX + 10)
