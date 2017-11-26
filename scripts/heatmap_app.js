@@ -13,10 +13,10 @@ var WIDTH  = 800;
 var HEIGHT = 800;
 var FILEPATH = 'data/santiago.geojson';
 var FILEPATH2 = 'data/dow_data/total_trips_lunes.json';
+var FILEPATH3 = 'data/dow_data/dow-data.json'
 var POINTS = 'data/data_Domingo.csv';
 
 var COLORS = d3.schemeYlOrRd[6];
-console.log(COLORS);
 // Definamos algunos parámetros relacionados con la población.
 var MINTRIPS =  100;
 var MEDTRIPS = 3500;
@@ -58,10 +58,11 @@ const updateDay = newDataset => {
       // en la plana superficie de nuestro navegador.      (bidimensional)
       // (Más información en: https://www.youtube.com/watch?v=kIID5FDi2JQ)
       d3.json(newDataset, json2 => {
-        var total_trips = Object.values(json2).reduce((a, b) => a + b, 0);
-        console.log(total_trips);
+        let total_trips = Object.values(json2).reduce((a, b) => a + b, 0);
+        let comune_name = Object.keys(json2);
+        console.log(total_trips, comune_name);
 
-        var tripScale = d3.scaleLinear()
+        var colorScale = d3.scaleLinear()
                           .domain([MINTRIPS, 1380, 2760, 4140, 5520, MAXTRIPS])
                           .range(COLORS);
 
@@ -85,13 +86,40 @@ const updateDay = newDataset => {
             .transition()
             .attr('d', path)
             .attr('fill', datum => {
-                return tripScale(getTripsComuna(datum, json2));
-              });
+                return colorScale(getTripsComuna(datum, json2));
+              })
+
+
         })
   });
 }
 
+const updateHist = nameComuna => {
+  console.log('hola' , nameComuna);
+  d3.json(FILEPATH3, data => {
+    let dowData = [];
+    let dows = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado',
+                'domingo']
+    dows.forEach(dow => {
+      dowData.push({
+        'dow': dow,
+        'trips': data[dow][nameComuna]
+      })
+    })
+    let yScaleHist = d3.scaleLinear()
+                       .domain([0,d3.max(dowData, d => {d.trips})])
+
+    let bins = d3.histogram()
+                 .value(d=> {d.trips})
+                 .domain(dows)
+                 .thresholds(10)
+    console.log(bins(dowData));
+  });
+}
+
 updateDay(FILEPATH2);
+
+d3.select('#dow-container').on('mouseover')
 
 d3.select('#dow-selector').on('change', () => {
     var base_path = 'data/dow_data/'
@@ -108,6 +136,7 @@ d3.select('#dow-selector').on('change', () => {
 function setName(datum) {
     var box = d3.select('#region');
     var name = datum.properties.NAME;
+    updateHist(name)
     var population = getPopulation(datum).toLocaleString();
     box.text(`Comuna: ${name}`); // (¡ES6!)
 }
@@ -122,6 +151,6 @@ function getPopulation(datum) {
 
 function getTripsComuna(datum, dataset) {
   var name = datum.properties.NAME;
-  console.log(name + " "+  dataset[name]);
+  // console.log(name + " "+  dataset[name]);
   return dataset[name];
 }
