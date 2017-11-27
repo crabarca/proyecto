@@ -167,7 +167,7 @@
       let hist = d3.select('#timeline-hist');
       hist.append('text')
         .attr('class', 'bar-data')
-        .text(Math.round(parseFloat(value)))
+        .text(Math.round(parseFloat(value)) + ' entradas/min')
         .attr('font-size', 15)
         .attr('transform', 'translate(10, -30)');
     };
@@ -206,7 +206,7 @@
           .attr('x', 0)
           .attr('y', (d, i) => (histBarHeight + histBarBetween) * i)
           .attr('height', histBarHeight)
-          .attr('fill', 'grey')
+          .attr('fill', (d, i) => histColorScale(i))
         .merge(bars)
           .on('mouseover', d => showBarData(d.value))
           .on('mouseout', d => hideBarData(d.value))
@@ -219,12 +219,18 @@
 
     var selectedStations = [];
 
+    let histColorScale = d3.scaleOrdinal(d3.schemeSet1);
+
     function clickStation(d) {
       if (state == 'selected') {
         if (selectedStations.indexOf(d.name) == -1) {
+          console.log(selectedStations);
+          console.log(selectedStations.length);
           // Highlight with stroke
-          d3.select(this).attr('stroke', 'black')
-            .attr('stroke-width', 3);
+          d3.select(this)
+            .attr('stroke', histColorScale(selectedStations.length))
+            .attr('stroke-width', 3)
+            .attr('fill', 'white');
 
           histData.push({label: d.name, value: d.count});
           updateTimelineHist(histData);
@@ -232,7 +238,9 @@
           selectedStations.push(d.name);
         }
         else {
-          d3.select(this).attr('stroke', null);
+          d3.select(this)
+            .attr('stroke', null)
+            .attr('fill', d => lineColors[linesByStation[d.name]]);
 
           histData.splice(histData.indexOf(d.name), 1);
           updateTimelineHist(histData);
@@ -439,7 +447,8 @@
           d3.select('#timeline-hist').remove();
           histData = [];
           selectedStations = [];
-          d3.selectAll('.station').attr('stroke', null);
+          d3.selectAll('.station').attr('stroke', null)
+            .attr('fill', d => lineColors[linesByStation[d.name]]);
           setupTimeline();
         };
 
