@@ -18,12 +18,12 @@ var margin = {top: 70, right: 40, bottom: 70, left: 40},
     height = 300 - margin.top - margin.bottom;
 
 var marginSM = {top:30, right: 30, bottom: 30, left:30},
-    widthSM = 700 - margin.left - margin.right,
-    heightSM = 800 - margin.left - margin.right;
+    widthSM = 400 - margin.left - margin.right,
+    heightSM = 200 - margin.left - margin.right;
 
 var FP = 'data/santiago.geojson';
 var FP2 = 'data/dow_data/dow-data.json'
-
+var FP3 = 'data/dow_data/sectores_trips.json'
 // var POINTS = 'data/data_Domingo.csv';
 
 FPS = () => {
@@ -58,8 +58,11 @@ var container = body.append('svg')
                     .attr('width', WIDTH)
                     .attr('height', HEIGHT);
 
-
-
+var smallMultiples = body.append('svg')
+                         .attr('width', WIDTH)
+                         .attr('height', HEIGHT + 100)
+                         .attr('class', 'smallcontainer')
+                         .append('g')
 
 function getMapParameters(bounds) {
     // Adaptado desde http://stackoverflow.com/a/14691788.
@@ -171,7 +174,6 @@ const updateHist = nameComuna => {
             //   .text("Dias")
              .call(d3.axisBottom(xBarChart));
 
-
     barchart.append("g")
        .attr("class", "barchart axis axis--y")
        .call(d3.axisLeft(yBarChart))
@@ -193,20 +195,95 @@ const updateHist = nameComuna => {
 }
 
 const updateMultiples = (filepath) => {
-  var multiple = body.append('svg')
-                     .attr('class', 'svg multiple')
-                     .attr('width', widthSM + marginSM.left + marginSM.right)
-                     .attr('height', heightSM + marginSM.top + marginSM.bottom)
-                     .attr("transform", `translate(${100},${-50})`)
-                     .append('g')
-                     .attr('class', 'multiple')
-                     .attr("transform", `translate(${marginSM.left},${marginSM.top})`);
-  let comune_total = Object.keys(filepath).length;
 
-  }
+
+  let sectores_total = Object.keys(filepath);
+
+  let dow_formated = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado',
+              'Domingo']
+
+  let marginItemSM = {top:10, right: 10, bottom: 10, left:10},
+      widthItemSM = 300 - marginItemSM.left - marginItemSM.right,
+      heightItemSM = 100 - marginItemSM.left - marginItemSM.right;
+
+  d3.json(filepath, data => {
+
+      let sectoresNames = Object.keys(data);
+      let trips = Object.keys(data).map(sector => {return data[sector]});
+      let max_trips = d3.max(trips.map(sector => {return Object.values(sector)}), array => {return d3.max(array)});
+
+    // Creo un grafico por cada sector
+    sectoresNames.forEach(sector => {
+      let dowData = [];
+      let dows = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado',
+                  'domingo']
+      dows.forEach(dow => {
+        dowData.push({
+          'dow': dow.charAt(0).toUpperCase() + dow.slice(1),
+          'trips': data[sector][dow]
+        })
+      })
+
+      console.log(dowData);
+
+      var multiple = body.append('svg')
+                         .attr('class', 'svg multiple')
+                         .attr('width', widthSM + marginSM.left + marginSM.right)
+                         .attr('height', heightSM + marginSM.top + marginSM.bottom)
+                         .attr("transform", `translate(${100},${-50})`)
+                         .append('g')
+                         .attr('class', 'multiple')
+                         .attr("transform", `translate(${marginSM.left},${marginSM.top})`);
+
+      var grafico = multiple.append('g')
+              .attr('class', `multiple item ${sector}`)
+              .attr('transform', `translate(${marginItemSM.left}, ${marginItemSM.top})`)
+
+      var dataArray = Object.values(data[sector])
+
+      let xScale = d3.scaleBand().rangeRound([0, widthItemSM])
+                                    .domain(dow_formated)
+                                    .padding(0.1),
+          yScale = d3.scaleLinear().range([heightItemSM ,0])
+                                   .domain([0, max_trips]);
+
+      let area = d3.area()
+                   .x(d => {return xScale(d.dow)})
+                   .y1(d => {return yScale(+d.trips)})
+
+      area.y0(yScale(0));
+
+      grafico.append('path')
+             .datum(dowData)
+             .attr('fill', '#fd8d3c')
+             .attr('d', area)
+
+      grafico.append('g')
+            .attr("transform", "translate(0," + heightItemSM + ")")
+            .call(d3.axisBottom(xScale));
+
+      grafico.append('g')
+              .call(d3.axisLeft(yScale))
+             .append('text')
+              .attr("fill", "#000")
+              .attr("transform", "rotate(-90)")
+              .attr("y", 6)
+              .attr("dy", "0.71em")
+              .attr("text-anchor", "end")
+
+          grafico.append("text")
+          .attr("class", "barchart title")
+          .attr("y", marginItemSM.top - 10)
+          .attr("x", (widthItemSM / 2) - 30)
+          .text(sector)
+
+    })
+
+  })
+}
 
 updateDay(FILEPATHS[0]);
-updateMultiples(FP2);
+updateMultiples(FP3);
 
 d3.select('#dow-selector').on('change', () => {
     var base_path = 'data/dow_data/'
@@ -223,12 +300,13 @@ d3.select('#dow-selector').on('change', () => {
 function removeBarChart(datum){
   // d3.select("g.barchart").selectAll("*").remove();
   d3.selectAll("svg.barchart").remove();
-  updateMultiples(FILEPATHS)
+  updateMultiples(FP3)
 }
 
 function createBarChart(datum) {
     // var box = d3.select('#region');
-    d3.select("svg.multiple").remove();
+    d3.select('svg.smallcontainer').remove();
+    d3.selectAll("svg.multiple").remove();
     var name = datum.properties.NAME;
     updateHist(name)
     // var population = getPopulation(datum).toLocaleString();
