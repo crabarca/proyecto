@@ -8,32 +8,58 @@ snippet05.js -- Ejemplo: mapa de Santiago
 
 // Intentaremos construir algo (un poco) más interesante que un _bar chart_.
 // Usaremos D3 para presentar información demográfica sobre nuestra capital.
+// set the dimensions and margins of the graph
 
-var WIDTH  = 800;
-var HEIGHT = 800;
-var FILEPATH = 'data/santiago.geojson';
-var FILEPATH2 = 'data/dow_data/total_trips_lunes.json';
-var FILEPATH3 = 'data/dow_data/dow-data.json'
-var POINTS = 'data/data_Domingo.csv';
+var WIDTH  = 800,
+    HEIGHT = 800;
 
+var margin = {top: 70, right: 40, bottom: 70, left: 40},
+    width = 500 - margin.left - margin.right,
+    height = 300 - margin.top - margin.bottom;
+
+var marginSM = {top:30, right: 30, bottom: 30, left:30},
+    widthSM = 700 - margin.left - margin.right,
+    heightSM = 800 - margin.left - margin.right;
+
+var FP = 'data/santiago.geojson';
+var FP2 = 'data/dow_data/dow-data.json'
+
+// var POINTS = 'data/data_Domingo.csv';
+
+FPS = () => {
+  fps = []
+  day_of_week = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
+  day_of_week.forEach(dow =>{
+    fileName = `data/dow_data/total_trips_${dow}.json`
+    fps.push(fileName)
+  })
+  return fps
+}
+
+var FILEPATHS = FPS();
 var COLORS = d3.schemeYlOrRd[6];
+
 // Definamos algunos parámetros relacionados con la población.
 var MINTRIPS =  100;
 var MEDTRIPS = 3500;
 var MAXTRIPS = 7000;
 var PREFIX = 'https://es.wikipedia.org/wiki/';
 
+
 d3.select('#d3-header').text("Provincia de Santiago");
 d3.selectAll('#dow-container p').remove();
 
 var body = d3.select('#dow-container');
-body.append('p').text("Comuna: ")
-                .attr('id', 'region')
-                .style('font-weight', 'bold');
+// body.append('p')
+//                 .attr('id', 'region')
+//                 .style('font-weight', 'bold');
 
 var container = body.append('svg')
                     .attr('width', WIDTH)
                     .attr('height', HEIGHT);
+
+
+
 
 function getMapParameters(bounds) {
     // Adaptado desde http://stackoverflow.com/a/14691788.
@@ -51,16 +77,19 @@ function getMapParameters(bounds) {
 
 const updateDay = newDataset => {
   // Obtengamos los datos desde el archivo en formato JSON.
-  d3.json(FILEPATH, function(json) {
+  d3.json(FP, function(json) {
       // Antes de dibujar un mapa, debemos primero escoger una proyección,
       // ya que no es posible representar —sin provocar alguna distorsión—
       // nuestro magnífico y esférico planeta Tierra      (tridimensional)
       // en la plana superficie de nuestro navegador.      (bidimensional)
       // (Más información en: https://www.youtube.com/watch?v=kIID5FDi2JQ)
+      // console.log(json);
       d3.json(newDataset, json2 => {
         let total_trips = Object.values(json2).reduce((a, b) => a + b, 0);
         let comune_name = Object.keys(json2);
-        console.log(total_trips, comune_name);
+        let comune_total = Object.keys(json2).length;
+
+        console.log(total_trips, comune_total ,comune_name );
 
         var colorScale = d3.scaleLinear()
                           .domain([MINTRIPS, 1380, 2760, 4140, 5520, MAXTRIPS])
@@ -82,44 +111,102 @@ const updateDay = newDataset => {
             .data(json.features)
             .enter()
             .append('path')
-            .on('mouseover', (d, i, e) => setName(d))
+            .on('mouseover', (d, i, e) => createBarChart(d))
+            .on('mouseout', (d) => removeBarChart(d))
             .transition()
             .attr('d', path)
             .attr('fill', datum => {
                 return colorScale(getTripsComuna(datum, json2));
               })
-
-
         })
   });
 }
 
 const updateHist = nameComuna => {
-  console.log('hola' , nameComuna);
-  d3.json(FILEPATH3, data => {
+  // Agrego aca el barchart de manera que no tape al small multiple
+  var barchart = body.append('svg')
+                     .attr('class', 'svg barchart')
+                     .attr('width', width + margin.left + margin.right)
+                     .attr('height', height + margin.top + margin.bottom)
+                     .attr("transform", `translate(${100},${-400})`)
+                     .append('g')
+                     .attr('class', 'barchart')
+                     .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  d3.json(FP2, data => {
     let dowData = [];
     let dows = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado',
                 'domingo']
     dows.forEach(dow => {
       dowData.push({
-        'dow': dow,
+        'dow': dow.charAt(0).toUpperCase() + dow.slice(1),
         'trips': data[dow][nameComuna]
       })
     })
-    let yScaleHist = d3.scaleLinear()
-                       .domain([0,d3.max(dowData, d => {d.trips})])
 
-    let bins = d3.histogram()
-                 .value(d=> {d.trips})
-                 .domain(dows)
-                 .thresholds(10)
-    console.log(bins(dowData));
+    let dow_formated = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado',
+                'Domingo']
+
+    let xBarChart = d3.scaleBand().rangeRound([0, width])
+                                  .domain(dow_formated)
+                                  .padding(0.1),
+        yBarChart = d3.scaleLinear().range([height ,0])
+                                    .domain([0, d3.max(dowData, d => {return +d.trips})])  ;
+
+    // console.log(yBarChart(200));
+    barchart.selectAll('.bar')
+             .data(dowData).enter()
+             .append('rect')
+             .attr('class', 'bar')
+             .attr('x', d=>{ return xBarChart(d.dow)})
+             .attr('y', d=> {return yBarChart(d.trips)})
+             .attr('width', xBarChart.bandwidth() - 10)
+             .attr('height', d => {return height - yBarChart(d.trips)})
+             .attr('fill', "#fd8d3c")
+
+    barchart.append('g')
+             .attr("class", "barchart axis axis--x")
+             .attr("transform", "translate(0,"+ height +")")
+            //  .append("text")
+            //   .text("Dias")
+             .call(d3.axisBottom(xBarChart));
+
+
+    barchart.append("g")
+       .attr("class", "barchart axis axis--y")
+       .call(d3.axisLeft(yBarChart))
+     .append("text")
+       .attr("transform", "rotate(-90)")
+       .attr("y", 0)
+       .attr("dy", "0.71em")
+       .attr("text-anchor", "end")
+       .text("Frequency");
+
+    d3.select('svg.barchart')
+        .append("text")
+        .attr("class", "barchart title")
+        .attr("y", margin.top - 40)
+        .attr("x", (width / 2) - margin.left)
+        .text(nameComuna)
+
   });
 }
 
-updateDay(FILEPATH2);
+const updateMultiples = (filepath) => {
+  var multiple = body.append('svg')
+                     .attr('class', 'svg multiple')
+                     .attr('width', widthSM + marginSM.left + marginSM.right)
+                     .attr('height', heightSM + marginSM.top + marginSM.bottom)
+                     .attr("transform", `translate(${100},${-50})`)
+                     .append('g')
+                     .attr('class', 'multiple')
+                     .attr("transform", `translate(${marginSM.left},${marginSM.top})`);
+  let comune_total = Object.keys(filepath).length;
 
-d3.select('#dow-container').on('mouseover')
+  }
+
+updateDay(FILEPATHS[0]);
+updateMultiples(FP2);
 
 d3.select('#dow-selector').on('change', () => {
     var base_path = 'data/dow_data/'
@@ -133,12 +220,19 @@ d3.select('#dow-selector').on('change', () => {
     updateDay(dataset);
     });
 
-function setName(datum) {
-    var box = d3.select('#region');
+function removeBarChart(datum){
+  // d3.select("g.barchart").selectAll("*").remove();
+  d3.selectAll("svg.barchart").remove();
+  updateMultiples(FILEPATHS)
+}
+
+function createBarChart(datum) {
+    // var box = d3.select('#region');
+    d3.select("svg.multiple").remove();
     var name = datum.properties.NAME;
     updateHist(name)
-    var population = getPopulation(datum).toLocaleString();
-    box.text(`Comuna: ${name}`); // (¡ES6!)
+    // var population = getPopulation(datum).toLocaleString();
+    // box.text(`Comuna: ${name}`); // (¡ES6!)
 }
 
 function getWiki(datum) {
