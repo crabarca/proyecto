@@ -10,8 +10,13 @@ snippet05.js -- Ejemplo: mapa de Santiago
 // Usaremos D3 para presentar información demográfica sobre nuestra capital.
 // set the dimensions and margins of the graph
 
-var WIDTH  = 800,
-    HEIGHT = 800;
+
+
+var HEIGHT = 900,
+    WIDTH = window.innerWidth * .95;
+
+var MAPWIDTH = 800,
+    MAPHEIGHT = 800;
 
 var margin = {top: 70, right: 40, bottom: 70, left: 40},
     width = 500 - margin.left - margin.right,
@@ -35,7 +40,6 @@ FPS = () => {
   })
   return fps
 }
-
 var FILEPATHS = FPS();
 var COLORS = d3.schemeYlOrRd[6];
 
@@ -58,11 +62,17 @@ var container = body.append('svg')
                     .attr('width', WIDTH)
                     .attr('height', HEIGHT);
 
-var smallMultiples = body.append('svg')
-                         .attr('width', WIDTH)
-                         .attr('height', HEIGHT + 100)
-                         .attr('class', 'smallcontainer')
-                         .append('g')
+// var smallMultiples = body.append('g')
+                        //  .attr('width', WIDTH)
+                        //  .attr('height', HEIGHT + 100)
+                        //  .attr('class', 'smallcontainer')
+var smallMultiples = container.append('g')
+                        .attr('transform', `translate(${WIDTH - widthSM - 100}, 0)`)
+                        .attr('class', 'smallcontainer');
+
+var barchartContainer = container.append('g')
+                        .attr('transform', `translate(${width + 500}, 0)`)
+                        .attr('class', 'barchartContainer');
 
 function getMapParameters(bounds) {
     // Adaptado desde http://stackoverflow.com/a/14691788.
@@ -72,9 +82,9 @@ function getMapParameters(bounds) {
     var [[b0x, b0y], [b1x, b1y]] = bounds; // (¡ES6!)
 
     // Luego, utilizamos estos puntos para hallar los parámetros adecuados.
-    var scale = 0.95 / Math.max((b1x - b0x) / WIDTH, (b1y - b0y) / HEIGHT);
-    var translate = [(WIDTH - scale * (b1x + b0x)) / 2,
-              -75 + (HEIGHT - scale * (b1y + b0y)) / 2];
+    var scale = 0.95 / Math.max((b1x - b0x) / MAPWIDTH, (b1y - b0y) / MAPHEIGHT);
+    var translate = [(MAPWIDTH - scale * (b1x + b0x)) / 2,
+              -75 + (MAPHEIGHT - scale * (b1y + b0y)) / 2];
     return [scale, translate];
 }
 
@@ -127,14 +137,9 @@ const updateDay = newDataset => {
 
 const updateHist = nameComuna => {
   // Agrego aca el barchart de manera que no tape al small multiple
-  var barchart = body.append('svg')
-                     .attr('class', 'svg barchart')
-                     .attr('width', width + margin.left + margin.right)
-                     .attr('height', height + margin.top + margin.bottom)
-                     .attr("transform", `translate(${100},${-400})`)
-                     .append('g')
+  var barchart = barchartContainer.append('g')
                      .attr('class', 'barchart')
-                     .attr("transform", `translate(${margin.left},${margin.top})`);
+                     .attr("transform", `translate(${margin.left},${margin.top})`)
 
   d3.json(FP2, data => {
     let dowData = [];
@@ -170,8 +175,6 @@ const updateHist = nameComuna => {
     barchart.append('g')
              .attr("class", "barchart axis axis--x")
              .attr("transform", "translate(0,"+ height +")")
-            //  .append("text")
-            //   .text("Dias")
              .call(d3.axisBottom(xBarChart));
 
     barchart.append("g")
@@ -184,10 +187,10 @@ const updateHist = nameComuna => {
        .attr("text-anchor", "end")
        .text("Frequency");
 
-    d3.select('svg.barchart')
+    d3.select('g.barchart')
         .append("text")
         .attr("class", "barchart title")
-        .attr("y", margin.top - 40)
+        .attr("y", margin.top - 80)
         .attr("x", (width / 2) - margin.left)
         .text(nameComuna)
 
@@ -196,15 +199,12 @@ const updateHist = nameComuna => {
 
 const updateMultiples = (filepath) => {
 
-
-  let sectores_total = Object.keys(filepath);
-
   let dow_formated = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado',
               'Domingo']
 
   let marginItemSM = {top:10, right: 10, bottom: 10, left:10},
-      widthItemSM = 300 - marginItemSM.left - marginItemSM.right,
-      heightItemSM = 100 - marginItemSM.left - marginItemSM.right;
+      widthItemSM = 350 - marginItemSM.left - marginItemSM.right,
+      heightItemSM = 110 - marginItemSM.left - marginItemSM.right;
 
   d3.json(filepath, data => {
 
@@ -213,7 +213,7 @@ const updateMultiples = (filepath) => {
       let max_trips = d3.max(trips.map(sector => {return Object.values(sector)}), array => {return d3.max(array)});
 
     // Creo un grafico por cada sector
-    sectoresNames.forEach(sector => {
+    sectoresNames.forEach((sector, i) => {
       let dowData = [];
       let dows = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado',
                   'domingo']
@@ -225,19 +225,9 @@ const updateMultiples = (filepath) => {
       })
 
       console.log(dowData);
-
-      var multiple = body.append('svg')
-                         .attr('class', 'svg multiple')
-                         .attr('width', widthSM + marginSM.left + marginSM.right)
-                         .attr('height', heightSM + marginSM.top + marginSM.bottom)
-                         .attr("transform", `translate(${100},${-50})`)
-                         .append('g')
-                         .attr('class', 'multiple')
-                         .attr("transform", `translate(${marginSM.left},${marginSM.top})`);
-
-      var grafico = multiple.append('g')
-              .attr('class', `multiple item ${sector}`)
-              .attr('transform', `translate(${marginItemSM.left}, ${marginItemSM.top})`)
+      var grafico = smallMultiples.append('g')
+                    .attr('class', `multiple item ${sector}`)
+                    .attr('transform', `translate(${marginItemSM.left}, ${i*130 + marginItemSM.top})`)
 
       var dataArray = Object.values(data[sector])
 
@@ -263,7 +253,7 @@ const updateMultiples = (filepath) => {
             .call(d3.axisBottom(xScale));
 
       grafico.append('g')
-              .call(d3.axisLeft(yScale))
+              .call(d3.axisLeft(yScale).ticks(5, 's'))
              .append('text')
               .attr("fill", "#000")
               .attr("transform", "rotate(-90)")
@@ -271,11 +261,11 @@ const updateMultiples = (filepath) => {
               .attr("dy", "0.71em")
               .attr("text-anchor", "end")
 
-          grafico.append("text")
-          .attr("class", "barchart title")
-          .attr("y", marginItemSM.top - 10)
-          .attr("x", (widthItemSM / 2) - 30)
-          .text(sector)
+      grafico.append("text")
+      .attr("class", "multiple title")
+      .attr("y", marginItemSM.top - 10)
+      .attr("x", (widthItemSM / 2) - 30)
+      .text(sector.charAt(0).toUpperCase() + sector.slice(1))
 
     })
 
@@ -299,18 +289,15 @@ d3.select('#dow-selector').on('change', () => {
 
 function removeBarChart(datum){
   // d3.select("g.barchart").selectAll("*").remove();
-  d3.selectAll("svg.barchart").remove();
+  d3.select("g.barchart").remove();
   updateMultiples(FP3)
 }
 
 function createBarChart(datum) {
-    // var box = d3.select('#region');
-    d3.select('svg.smallcontainer').remove();
-    d3.selectAll("svg.multiple").remove();
+    d3.selectAll('g.multiple').remove();
+    // d3.selectAll("multiple.item").remove();
     var name = datum.properties.NAME;
     updateHist(name)
-    // var population = getPopulation(datum).toLocaleString();
-    // box.text(`Comuna: ${name}`); // (¡ES6!)
 }
 
 function getWiki(datum) {
